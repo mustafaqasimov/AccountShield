@@ -9,6 +9,8 @@ import com.accountshield.api.enums.Role;
 import com.accountshield.api.mapper.UserMapper;
 import com.accountshield.api.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +21,9 @@ public class UserService {
     private final UserMapper mapper;
     private final UserRepository repository;
     private final PasswordEncoder passwordEncoder;
+
+    private final JWTService jwtService;
+    private final AuthenticationManager authenticationManager;
 
     public UserResponse registerUser(UserRequest request) {
 
@@ -42,20 +47,24 @@ public class UserService {
 
 
     public LoginResponse loginUser(LoginRequest request) {
+
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.getUsername(),
+                        request.getPassword()
+                )
+        );
+
         User user = repository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("Invalid username or password"));
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid username or password");
-        }
+        String jwtToken = jwtService.generateToken(user);
 
         return LoginResponse.builder()
                 .id(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
-                .token("your-jwt-token")
+                .token(jwtToken)
                 .build();
     }
-
-
 }
