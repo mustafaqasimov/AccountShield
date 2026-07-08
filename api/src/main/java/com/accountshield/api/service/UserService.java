@@ -6,6 +6,8 @@ import com.accountshield.api.dto.UserRequest;
 import com.accountshield.api.dto.UserResponse;
 import com.accountshield.api.entity.User;
 import com.accountshield.api.enums.Role;
+import com.accountshield.api.exception.EmailAlreadyExistsException;
+import com.accountshield.api.exception.UserAlreadyExistsException;
 import com.accountshield.api.mapper.UserMapper;
 import com.accountshield.api.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,10 +30,10 @@ public class UserService {
     public UserResponse registerUser(UserRequest request) {
 
         if (repository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("This email has already been registered!");
+            throw new EmailAlreadyExistsException("This email has already been registered!");
         }
         if (repository.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("This username has already been taken!");
+            throw new UserAlreadyExistsException("This username has already been taken!");
         }
 
         User user = mapper.toEntity(request);
@@ -56,7 +58,7 @@ public class UserService {
         );
 
         User user = repository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new RuntimeException("Invalid username or password"));
+                .orElseThrow(() -> new UserAlreadyExistsException("Invalid username or password"));
 
         String jwtToken = jwtService.generateToken(user);
 
