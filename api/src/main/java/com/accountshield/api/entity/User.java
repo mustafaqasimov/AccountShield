@@ -1,6 +1,7 @@
 package com.accountshield.api.entity;
 
 import com.accountshield.api.entity.base.BaseEntity;
+import com.accountshield.api.enums.ActiveStatus;
 import com.accountshield.api.enums.Role;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
@@ -44,6 +45,11 @@ public class User extends BaseEntity implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority(role.name()));
+        return List.of(new SimpleGrantedAuthority("ROLE_"+ role.name()));
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return getActiveStatus() != ActiveStatus.BLOCKED;
     }
 }
