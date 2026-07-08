@@ -4,8 +4,8 @@ import com.accountshield.api.entity.base.BaseEntity;
 import com.accountshield.api.enums.ActiveStatus;
 import com.accountshield.api.enums.Role;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -52,4 +52,8 @@ public class User extends BaseEntity implements UserDetails {
     public boolean isEnabled() {
         return getActiveStatus() != ActiveStatus.BLOCKED;
     }
+
+    @JsonManagedReference
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Token> tokens;
 }
