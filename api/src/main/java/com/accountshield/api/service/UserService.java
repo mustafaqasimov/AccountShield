@@ -4,13 +4,16 @@ import com.accountshield.api.dto.LoginRequest;
 import com.accountshield.api.dto.LoginResponse;
 import com.accountshield.api.dto.UserRequest;
 import com.accountshield.api.dto.UserResponse;
+import com.accountshield.api.entity.Token;
 import com.accountshield.api.entity.User;
 import com.accountshield.api.enums.ActiveStatus;
 import com.accountshield.api.enums.Role;
+import com.accountshield.api.enums.TokenType;
 import com.accountshield.api.exception.EmailAlreadyExistsException;
 import com.accountshield.api.exception.UserAlreadyExistsException;
 import com.accountshield.api.mapper.UserMapper;
 import com.accountshield.api.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -30,7 +33,9 @@ public class UserService {
 
     private final JWTService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final TokenService tokenService;
 
+    @Transactional
     public UserResponse registerUser(UserRequest request) {
 
         if (repository.existsByEmail(request.getEmail())) {
@@ -45,32 +50,40 @@ public class UserService {
         String hashedPassword = passwordEncoder.encode(request.getPassword());
         user.setPassword(hashedPassword);
         user.setRole(Role.USER);
+        user.setActiveStatus(ActiveStatus.INACTIVE);
 
         User savedUser = repository.save(user);
+
+        Token verificationToken = tokenService.createToken(savedUser, TokenType.VERIFICATION, 86400000L);
+        //Gelecekde email gondermek ile ola biler
+        System.out.println("Verification Token: " + verificationToken.getTokenValue());
 
         return mapper.toResponse(savedUser);
     }
 
 
-    public LoginResponse loginUser(LoginRequest request) {
-
+    @Transactional
+    public LoginResponse login(LoginRequest request) {
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
-                        request.getPassword()
-                )
+                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
         );
 
         User user = repository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new UsernameNotFoundException("Invalid username or password"));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        String jwtToken = jwtService.generateToken(user);
+        if (user.getActiveStatus() == ActiveStatus.INACTIVE) {
+            throw new RuntimeException("Verification required! (verify-email)");
+        }
+
+        String accessToken = jwtService.generateToken(user);
+        Token refreshToken = tokenService.createToken(user, TokenType.REFRESH, 604800000L);
 
         return LoginResponse.builder()
                 .id(user.getId())
-                .username(user.getUsername())
                 .email(user.getEmail())
-                .token(jwtToken)
+                .username(user.getUsername())
+                .accessToken(accessToken)
+                .refreshToken(refreshToken.getTokenValue())
                 .build();
     }
 
